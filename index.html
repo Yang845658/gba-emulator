@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#1a1a2e">
+    <title>🎮 GBA 模拟器</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="icon" type="image/png" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==">
+</head>
+<body>
+    <div class="emulator-container" id="emulatorContainer">
+        <!-- 顶部状态栏 -->
+        <header class="emulator-header">
+            <div class="header-left">
+                <h1 class="emulator-title">
+                    <span class="title-icon">🎮</span>
+                    GBA 模拟器
+                </h1>
+                <span class="game-title-display" id="gameTitleDisplay">未加载游戏</span>
+            </div>
+            <div class="header-center">
+                <div class="user-display" id="userDisplay"></div>
+            </div>
+            <div class="header-right">
+                <button class="btn btn-icon" id="fullscreenBtn" title="全屏">
+                    <span class="btn-icon">⛶</span>
+                </button>
+                <button class="btn btn-icon" id="gamesListBtn" title="游戏列表">
+                    <span class="btn-icon">📋</span>
+                </button>
+                <button class="btn btn-icon" id="settingsBtn" title="设置">
+                    <span class="btn-icon">⚙️</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- 游戏屏幕区域 -->
+        <div class="screen-container" id="screenContainer">
+            <div id="game" class="emulator-game"></div>
+            <div class="screen-overlay" id="screenOverlay">
+                <div class="overlay-content">
+                    <div class="no-game-message" id="noGameMessage">
+                        <p class="message-icon">🎮</p>
+                        <p>选择游戏开始</p>
+                        <p class="message-hint">支持 .gba 格式</p>
+                    </div>
+                    <button class="btn btn-secondary" id="closeOverlayBtn" style="margin-top: 20px; display: none;">
+                        关闭提示
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 游戏控制区域 - 自定义按键 -->
+        <div class="controls-container" id="controlsContainer">
+            <!-- 方向键 -->
+            <div class="dpad-container">
+                <div class="dpad">
+                    <button class="dpad-btn dpad-up" data-gba="UP" type="button">▲</button>
+                    <button class="dpad-btn dpad-left" data-gba="LEFT" type="button">◀</button>
+                    <button class="dpad-btn dpad-right" data-gba="RIGHT" type="button">▶</button>
+                    <button class="dpad-btn dpad-down" data-gba="DOWN" type="button">▼</button>
+                </div>
+            </div>
+
+            <!-- 功能按钮 -->
+            <div class="action-buttons-container">
+                <div class="action-buttons">
+                    <button class="action-btn btn-b" data-gba="B" type="button">B</button>
+                    <button class="action-btn btn-a" data-gba="A" type="button">A</button>
+                    <button class="action-btn btn-select" data-gba="SELECT" type="button">SELECT</button>
+                    <button class="action-btn btn-start" data-gba="START" type="button">START</button>
+                </div>
+            </div>
+
+            <!-- 肩部按钮 -->
+            <div class="shoulder-buttons">
+                <button class="shoulder-btn btn-l" data-gba="L" type="button">L</button>
+                <button class="shoulder-btn btn-r" data-gba="R" type="button">R</button>
+            </div>
+        </div>
+
+        <!-- 底部控制栏 -->
+        <footer class="emulator-footer">
+            <div class="footer-controls">
+                <button class="btn btn-primary" id="loadRomBtn">
+                    <span class="btn-icon">📂</span> 选择游戏
+                </button>
+                <button class="btn btn-secondary" id="resetBtn">
+                    <span class="btn-icon">🔄</span> 重置
+                </button>
+                <button class="btn btn-secondary" id="saveStateBtn">
+                    <span class="btn-icon">💾</span> 保存
+                </button>
+                <button class="btn btn-secondary" id="loadStateBtn">
+                    <span class="btn-icon">📥</span> 读取
+                </button>
+            </div>
+            <div class="footer-info">
+                <span class="status-display" id="statusDisplay">就绪</span>
+            </div>
+        </footer>
+
+        <!-- 隐藏的文件输入 -->
+        <input type="file" id="romFileInput" accept=".gba" style="display: none;">
+    </div>
+
+    <!-- 游戏列表侧边栏 -->
+    <div class="sidebar" id="gamesSidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-header-top">
+                <h2>📋 游戏列表</h2>
+                <button class="btn btn-icon close-sidebar" id="closeGamesSidebar">✕</button>
+            </div>
+            <div class="rom-search-box">
+                <span class="rom-search-icon">🔍</span>
+                <input type="text" class="rom-search-input" id="romSearchInput" placeholder="搜索游戏...">
+            </div>
+        </div>
+        <!-- 最近游戏 -->
+        <div class="recent-games-section" id="recentGamesSection" style="display: none;">
+            <div class="section-header">
+                <span class="section-icon">🕐</span>
+                <span>最近游玩</span>
+                <button class="clear-recent-btn" id="clearRecentBtn" title="清除记录">✕</button>
+            </div>
+            <div class="recent-games-list" id="recentGamesList"></div>
+        </div>
+        <!-- 全部游戏 -->
+        <div class="all-games-section">
+            <div class="section-header">
+                <span class="section-icon">🎮</span>
+                <span>全部游戏</span>
+            </div>
+            <div class="rom-list" id="romList">
+                <p class="rom-list-hint">将 .gba 文件放入 roms 文件夹</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户登录模态框 -->
+    <div class="modal-overlay" id="userLoginModal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>👤 用户登录</h3>
+                <button class="modal-close" id="closeLoginModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">输入您的用户名开始游戏</p>
+                <input type="text" class="user-name-input" id="userNameInput" placeholder="用户名" maxlength="20">
+                <button class="btn btn-primary modal-btn" id="confirmLoginBtn">登录</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 用户切换模态框 -->
+    <div class="modal-overlay" id="userSwitchModal" style="display: none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>⇄ 切换用户</h3>
+                <button class="modal-close" id="closeSwitchModal">✕</button>
+            </div>
+            <div class="modal-body">
+                <p class="modal-hint">当前用户：<span id="currentUserName"></span></p>
+                <button class="btn btn-secondary modal-btn" id="logoutBtn">退出登录</button>
+                <button class="btn btn-primary modal-btn" id="switchUserBtn">切换用户</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置面板 -->
+    <div class="settings-panel" id="settingsPanel">
+        <div class="settings-header">
+            <h2>设置</h2>
+            <button class="btn btn-icon close-settings" id="closeSettings">✕</button>
+        </div>
+        <div class="settings-content">
+            <div class="setting-item">
+                <label>屏幕方向</label>
+                <select id="orientationSelect">
+                    <option value="auto">自动</option>
+                    <option value="landscape">横屏</option>
+                    <option value="portrait">竖屏</option>
+                </select>
+            </div>
+            <div class="setting-item">
+                <label>音效</label>
+                <input type="checkbox" id="soundToggle" checked>
+            </div>
+            <div class="setting-item">
+                <label>音量</label>
+                <input type="range" id="volumeSlider" min="0" max="100" value="80">
+            </div>
+            <div class="setting-item">
+                <label>按键音</label>
+                <input type="checkbox" id="keySoundToggle" checked>
+            </div>
+            <div class="setting-item">
+                <label>显示性能</label>
+                <input type="checkbox" id="performanceToggle">
+            </div>
+            <div class="setting-item">
+                <label>存档管理</label>
+                <button class="btn btn-secondary" id="manageSavesBtn" style="padding: 6px 12px; font-size: 0.85rem;">管理</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 存档管理模态框 -->
+    <div class="modal-overlay" id="manageSavesModal" style="display: none;">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>💾 存档管理</h3>
+                <button class="modal-close" id="closeManageSaves">✕</button>
+            </div>
+            <div class="modal-body" style="max-height: 400px; overflow-y: auto;">
+                <div id="savesListContent">
+                    <p class="modal-hint">加载中...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
