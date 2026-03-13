@@ -420,6 +420,55 @@ function handleRomSelect(event) {
     elements.romFileInput.value = '';
 }
 
+// 初始化模拟器（在 loader.js 加载后调用）
+function initEmulator(gameName) {
+    const onReady = (e) => {
+        window.removeEventListener('EJS_emulatorReady', onReady);
+        window.EJS_emulator = e.detail.emulator;
+        console.log('模拟器已就绪');
+        updateStatus('游戏运行中');
+        elements.overlay.style.display = 'none';
+        hideEJSDefaultControls();
+        forceRefreshGameDisplay();
+    };
+    window.addEventListener('EJS_emulatorReady', onReady, { once: true });
+    
+    const onGameLoaded = () => {
+        window.removeEventListener('EJS_gameLoaded', onGameLoaded);
+        console.log('游戏已加载');
+        updateStatus('游戏运行中');
+        elements.overlay.style.display = 'none';
+        hideEJSDefaultControls();
+        forceRefreshGameDisplay();
+    };
+    window.addEventListener('EJS_gameLoaded', onGameLoaded, { once: true });
+    
+    const onError = (e) => {
+        window.removeEventListener('EJS_error', onError);
+        console.error('EmulatorJS 错误:', e.detail);
+        elements.overlay.style.display = 'flex';
+        elements.noGameMessage.innerHTML = '<p class="message-icon">❌</p><p>加载失败</p><p class="message-hint">' + (e.detail?.message || '未知错误') + '</p>';
+    };
+    window.addEventListener('EJS_error', onError, { once: true });
+    
+    setTimeout(() => {
+        if (elements.overlay && elements.overlay.style.display !== 'none') {
+            console.log('强制隐藏覆盖层');
+            elements.overlay.style.display = 'none';
+            hideEJSDefaultControls();
+            forceRefreshGameDisplay();
+        }
+    }, 5000);
+    
+    setTimeout(() => {
+        forceRefreshGameDisplay();
+    }, 8000);
+    
+    isRunning = true;
+    updateStatus(`加载：${gameName}`);
+    console.log(`ROM 加载成功：${gameName}`);
+}
+
 async function loadRomFile(file) {
     try {
         updateStatus('正在加载...');
@@ -437,68 +486,36 @@ async function loadRomFile(file) {
         
         window.EJS_player = '#game';
         window.EJS_gameUrl = romUrl;
+        
+        // 检查 loader.js 是否已经加载，避免重复加载导致变量冲突
+        if (window.EJS_loaderLoaded) {
+            console.log('EmulatorJS loader 已加载，跳过重复加载');
+            initEmulator(gameName);
+            return;
+        }
+        
         window.EJS_core = 'gba';
-        window.EJS_pathtodata = 'https://cdn.emulatorjs.org/latest/data/';
+        window.EJS_pathtodata = '/data/'; // 使用本地 data 文件夾
         window.EJS_startOnLoaded = true;
         window.EJS_volume = settings.volume;
         window.EJS_color = '#00d9ff';
         window.EJS_hideMenu = false;
+        window.EJS_debug = false;
+        window.EJS_allowFullscreen = false;
         
         const script = document.createElement('script');
-        script.src = 'https://cdn.emulatorjs.org/latest/data/loader.js';
-        script.onload = () => console.log('EmulatorJS loader 加载成功');
+        script.src = '/data/loader.js';
+        script.onload = () => {
+            window.EJS_loaderLoaded = true;
+            console.log('EmulatorJS loader 加载成功');
+            initEmulator(gameName);
+        };
         script.onerror = (e) => {
             console.error('EmulatorJS loader 加载失败:', e);
             elements.overlay.style.display = 'flex';
             elements.noGameMessage.innerHTML = '<p class="message-icon">❌</p><p>加载失败</p><p class="message-hint">请检查网络连接</p>';
         };
         document.head.appendChild(script);
-        
-        const onReady = (e) => {
-            window.removeEventListener('EJS_emulatorReady', onReady);
-            window.EJS_emulator = e.detail.emulator;
-            console.log('模拟器已就绪');
-            updateStatus('游戏运行中');
-            elements.overlay.style.display = 'none';
-            hideEJSDefaultControls();
-            forceRefreshGameDisplay();
-        };
-        window.addEventListener('EJS_emulatorReady', onReady, { once: true });
-        
-        const onGameLoaded = () => {
-            window.removeEventListener('EJS_gameLoaded', onGameLoaded);
-            console.log('游戏已加载');
-            updateStatus('游戏运行中');
-            elements.overlay.style.display = 'none';
-            hideEJSDefaultControls();
-            forceRefreshGameDisplay();
-        };
-        window.addEventListener('EJS_gameLoaded', onGameLoaded, { once: true });
-        
-        const onError = (e) => {
-            window.removeEventListener('EJS_error', onError);
-            console.error('EmulatorJS 错误:', e.detail);
-            elements.overlay.style.display = 'flex';
-            elements.noGameMessage.innerHTML = '<p class="message-icon">❌</p><p>加载失败</p><p class="message-hint">' + (e.detail?.message || '未知错误') + '</p>';
-        };
-        window.addEventListener('EJS_error', onError, { once: true });
-        
-        setTimeout(() => {
-            if (elements.overlay && elements.overlay.style.display !== 'none') {
-                console.log('强制隐藏覆盖层');
-                elements.overlay.style.display = 'none';
-                hideEJSDefaultControls();
-                forceRefreshGameDisplay();
-            }
-        }, 5000);
-        
-        setTimeout(() => {
-            forceRefreshGameDisplay();
-        }, 8000);
-        
-        isRunning = true;
-        updateStatus(`加载：${gameName}`);
-        console.log(`ROM 加载成功：${gameName}`);
     } catch (error) {
         elements.overlay.style.display = 'flex';
         elements.noGameMessage.innerHTML = '<p class="message-icon">❌</p><p>加载失败</p><p class="message-hint">' + error.message + '</p>';
@@ -554,47 +571,6 @@ async function scanRoms() {
             </div>
         `;
     }
-}
-
-function displayRomList(roms) {
-    if (roms.length === 0) {
-        elements.romList.innerHTML = `
-            <div class="rom-list-empty">
-                <p class="empty-icon">📂</p>
-                <p>roms 文件夹为空</p>
-                <p class="rom-list-hint">将 .gba 文件放入 roms 文件夹后刷新页面</p>
-            </div>
-        `;
-        return;
-    }
-    
-    // 显示 ROM 数量
-    const countHtml = `<div class="rom-count">共 ${roms.length} 个游戏</div>`;
-    
-    elements.romList.innerHTML = countHtml + roms.map((rom, index) => `
-        <div class="rom-item" data-url="${rom.url}" data-name="${rom.name}" data-index="${index}">
-            <span class="rom-icon">🎮</span>
-            <div class="rom-info">
-                <div class="rom-name">${rom.name}</div>
-                <div class="rom-size">GBA 游戏</div>
-            </div>
-            <span class="rom-load-icon">⬇️</span>
-        </div>
-    `).join('');
-    
-    // 绑定点击事件
-    elements.romList.querySelectorAll('.rom-item').forEach(item => {
-        item.addEventListener('click', function(e) {
-            e.preventDefault();
-            e.stopPropagation();
-            
-            const url = this.dataset.url;
-            const name = this.dataset.name;
-            
-            console.log('选择 ROM:', name);
-            loadRomFromUrl(url, name);
-        });
-    });
 }
 
 // 显示用户登录模态框
