@@ -420,6 +420,38 @@ function handleRomSelect(event) {
     elements.romFileInput.value = '';
 }
 
+// 重置模拟器状态（用于加载新游戏）
+function resetEmulator() {
+    console.log('重置模拟器状态...');
+    
+    // 清理旧的模拟器实例
+    if (window.EJS_emulator) {
+        try {
+            window.EJS_emulator.stop = true;
+            window.EJS_emulator = null;
+        } catch (e) {
+            console.warn('清理模拟器实例时出错:', e);
+        }
+    }
+    
+    // 移除所有事件监听器
+    window.EJS_emulatorReady = null;
+    window.EJS_gameLoaded = null;
+    window.EJS_error = null;
+    
+    // 重置关键变量
+    window.EJS_gameUrl = null;
+    window.EJS_gameID = null;
+    
+    // 清空游戏容器
+    if (elements.gameContainer) {
+        elements.gameContainer.innerHTML = '';
+    }
+    
+    isRunning = false;
+    currentRom = null;
+}
+
 // 初始化模拟器（在 loader.js 加载后调用）
 function initEmulator(gameName) {
     const onReady = (e) => {
@@ -471,6 +503,9 @@ function initEmulator(gameName) {
 
 async function loadRomFile(file) {
     try {
+        // 先重置旧的模拟器实例
+        resetEmulator();
+        
         updateStatus('正在加载...');
         elements.overlay.style.display = 'flex';
         elements.noGameMessage.innerHTML = '<div class="loading-spinner"><div class="spinner"></div><p>正在加载游戏...</p></div>';
@@ -481,33 +516,28 @@ async function loadRomFile(file) {
         const romUrl = URL.createObjectURL(file);
         currentRom = romUrl;
         
+        // 确保容器已清空
         elements.gameContainer.innerHTML = '';
-        await new Promise(r => setTimeout(r, 200));
+        await new Promise(r => setTimeout(r, 300));
         
+        // 每次都重新设置配置，确保使用最新的 ROM URL
         window.EJS_player = '#game';
         window.EJS_gameUrl = romUrl;
-        
-        // 检查 loader.js 是否已经加载，避免重复加载导致变量冲突
-        if (window.EJS_loaderLoaded) {
-            console.log('EmulatorJS loader 已加载，跳过重复加载');
-            initEmulator(gameName);
-            return;
-        }
-        
+        window.EJS_gameID = 'gba_' + gameName + '_' + Date.now(); // 唯一 ID 避免缓存冲突
         window.EJS_core = 'gba';
-        window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/'; // 使用 CDN 加載核心文件
+        window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/';
         window.EJS_startOnLoaded = true;
         window.EJS_volume = settings.volume;
         window.EJS_color = '#00d9ff';
         window.EJS_hideMenu = false;
         window.EJS_debug = false;
         window.EJS_allowFullscreen = false;
-        window.EJS_language = 'en-US'; // 設置語言避免加載 zh-TW
+        window.EJS_language = 'en-US';
         
+        // 每次都重新加载 loader.js，确保模拟器正确初始化
         const script = document.createElement('script');
         script.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
         script.onload = () => {
-            window.EJS_loaderLoaded = true;
             console.log('EmulatorJS loader 加载成功');
             initEmulator(gameName);
         };
@@ -754,6 +784,9 @@ function setupModalEvents() {
 // 从 URL 加载 ROM（带进度显示）
 async function loadRomFromUrl(url, name) {
     try {
+        // 先重置旧的模拟器实例
+        resetEmulator();
+        
         updateStatus(`正在加载：${name}`);
         elements.overlay.style.display = 'flex';
         
