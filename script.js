@@ -495,16 +495,17 @@ async function loadRomFile(file) {
         }
         
         window.EJS_core = 'gba';
-        window.EJS_pathtodata = '/data/'; // 使用本地 data 文件夾
+        window.EJS_pathtodata = 'https://cdn.emulatorjs.org/stable/data/'; // 使用 CDN 加載核心文件
         window.EJS_startOnLoaded = true;
         window.EJS_volume = settings.volume;
         window.EJS_color = '#00d9ff';
         window.EJS_hideMenu = false;
         window.EJS_debug = false;
         window.EJS_allowFullscreen = false;
+        window.EJS_language = 'en-US'; // 設置語言避免加載 zh-TW
         
         const script = document.createElement('script');
-        script.src = '/data/loader.js';
+        script.src = 'https://cdn.emulatorjs.org/stable/data/loader.js';
         script.onload = () => {
             window.EJS_loaderLoaded = true;
             console.log('EmulatorJS loader 加载成功');
